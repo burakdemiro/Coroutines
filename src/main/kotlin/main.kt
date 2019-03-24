@@ -1,7 +1,9 @@
 import kotlinx.coroutines.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 fun main() {
-    exampleWithContext()
+    exampleLaunchCoroutineScope()
 }
 
 suspend fun calculateHardThings(time: Int): Int {
@@ -59,24 +61,33 @@ fun exampleLaunchGlobalWaiting() = runBlocking {
 fun exampleLaunchCoroutineScope() = runBlocking {
     println("one - from thread ${Thread.currentThread().name}")
 
+    val customDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+
     // Local Coroutine
-    this.launch(Dispatchers.Default) {
+    // No need to say explicitly join because this is local coroutine
+    this.launch(customDispatcher) {
         printlnDelayed("two - from thread ${Thread.currentThread().name}")
     }
 
     println("three - from thread ${Thread.currentThread().name}")
+    (customDispatcher.executor as ExecutorService).shutdown()
 }
 
+// Yukarıdaki coroutine scope örnekleri herhangi bir değer döndürmüyor
 // async return type Deferred<T>
-// Multiple things -> Concurrently
+// Async-Await for run Multiple things -> Concurrently
 fun exampleAsynAwait() = runBlocking {
     val startTime = System.currentTimeMillis()
 
     // Eğer async'leri her birinin önüne "await" koyarsan işlem 3 saniye sürer
     // Diğer türlü 3 işlem paralel bir şekilde işler ve 1 saniyede biter
-    val deferred1 = async { calculateHardThings(10) }
-    val deferred2 = async { calculateHardThings(20) }
-    val deferred3 = async { calculateHardThings(30) }
+    // Concurrently
+    val deferred1 = async {
+        calculateHardThings(10) }
+    val deferred2 = async {
+        calculateHardThings(20) }
+    val deferred3 = async {
+        calculateHardThings(30) }
 
     // Sonucu yazdırmadan önce tamamlanmasını bekle(await)
     val sum = deferred1.await() + deferred2.await() + deferred3.await()
@@ -91,12 +102,15 @@ fun exampleWithContext() = runBlocking {
     val startTime = System.currentTimeMillis()
 
     // it'same thing set each and every async after await
-    val result1 = withContext(Dispatchers.Default) { calculateHardThings(10) }
-    val result2 = withContext(Dispatchers.Default) { calculateHardThings(20) }
-    val result3 = withContext(Dispatchers.Default) { calculateHardThings(30) }
+    val result1 = withContext(Dispatchers.Default) {
+        calculateHardThings(10) }
+    val result2 = withContext(Dispatchers.Default) {
+        calculateHardThings(20) }
+    val result3 = withContext(Dispatchers.Default) {
+        calculateHardThings(30) }
 
     val sum = result1 + result2 + result3
-    println("async/await result = $sum")
+    println("withContext result = $sum")
 
     val endTime = System.currentTimeMillis()
     println("Time taken = ${endTime - startTime}")
